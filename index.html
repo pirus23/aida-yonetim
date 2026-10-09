@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>AİDA - Site ve Apartman Yönetim Sistemi</title>
+<style>
+*{box-sizing:border-box;font-family:-apple-system,sans-serif}
+body{margin:0;background:#0b1329;color:#fff;font-size:14px}
+button,input,select{font:inherit}
+button{border:0;border-radius:8px;padding:11px;background:#3b82f6;color:white;cursor:pointer}
+input,select{width:100%;padding:12px;background:#0b1329;border:1px solid #304366;color:white;border-radius:8px}
+label{display:block;color:#9aabc5;font-size:12px;margin:12px 0 6px}
+header{padding:15px;background:#080f21;display:flex;justify-content:space-between;align-items:center}
+.logo{font-size:22px;font-weight:bold;color:#60a5fa}
+.wrap{padding:14px;max-width:850px;margin:auto}
+.card{background:#131e3a;border:1px solid #263556;border-radius:12px;padding:14px;margin-bottom:12px}
+h2{font-size:20px}h3{font-size:15px;margin-top:0}
+.muted{color:#9aabc5;font-size:12px;line-height:1.5}
+.full{width:100%;margin-top:10px}
+.secondary{background:#263556}
+.success{background:#087f5b}
+.danger{background:#b93848}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{padding:14px;background:#0b1329;border:1px solid #263556;border-radius:10px}
+.stat small{color:#9aabc5}
+.stat strong{display:block;font-size:19px;margin-top:8px;overflow-wrap:anywhere}
+nav{display:flex;gap:6px;padding:10px;overflow-x:auto;background:#101a32}
+nav button{white-space:nowrap;background:#263556}
+nav button.active{background:#3b82f6}
+.page{display:none}.page.active{display:block}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #263556}
+.badge{padding:5px 7px;border-radius:6px;font-size:11px;white-space:nowrap}
+.paid{background:#075b45;color:#6ee7b7}
+.unpaid{background:#692b38;color:#fecaca}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #263556}
+.tablewrap{overflow-x:auto}
+#app{display:none}
+#login{max-width:430px;margin:24px auto;padding:14px}
+#message{color:#fca5a5;margin-top:10px}
+@media(min-width:600px){.wrap{padding:22px}}
+</style>
+</head>
+<body>
+<div id="login">
+ <div class="card">
+  <div class="logo">AİDA</div>
+  <p class="muted">Site ve Apartman Yönetim Sistemi</p>
+  <label>Giriş rolü</label>
+  <select id="role">
+   <option value="kullanici">Sakin / Kullanıcı</option>
+   <option value="yonetici">Yönetici</option>
+   <option value="superadmin">Süper Admin</option>
+  </select>
+  <label>Kullanıcı adı</label>
+  <input id="username" placeholder="Kullanıcı adı">
+  <label>Şifre</label>
+  <input id="password" type="password" placeholder="Şifre">
+  <button class="full" onclick="login()">Giriş yap</button>
+  <div id="message"></div>
+ </div>
+</div>
+<div id="app">
+<header>
+ <div class="logo">AİDA</div>
+ <button class="secondary" onclick="logout()">Çıkış</button>
+</header>
+<nav>
+ <button class="active" onclick="tab('finance',this)">Finans</button>
+ <button onclick="tab('flats',this)">Daireler</button>
+ <button onclick="tab('facilities',this)">Tesisler</button>
+ <button onclick="tab('requests',this)">Talepler</button>
+</nav>
+<main class="wrap">
+ <div id="welcome" class="muted"></div>
+ <section id="finance" class="page active">
+  <h2>Finans ve Aidat</h2>
+  <div class="grid">
+   <div class="stat"><small>Kasa bakiyesi</small><strong id="cash">₺120.000</strong></div>
+   <div class="stat"><small>Ödenmemiş aidatlar</small><strong id="debt">₺0</strong></div>
+  </div>
+  <div class="card">
+   <h3>Aidat takibi</h3>
+   <label>Daire</label><select id="payFlat" onchange="refreshPayment()"></select>
+   <label>Ay</label><select id="payMonth" onchange="refreshPayment()"></select>
+   <div id="paymentInfo" class="row"></div>
+   <div id="paymentAdmin">
+    <button class="success full" onclick="togglePayment()">Ödeme durumunu değiştir</button>
+    <label>Gecikmiş ay sayısı</label>
+    <select id="delay" onchange="changeDelay()">
+     <option value="1">1 ay</option>
+     <option value="2">2 ay</option>
+     <option value="3">3 ay</option>
+     <option value="4">4 ay</option>
+     <option value="5">5+ ay</option>
+    </select>
+    <button class="secondary full" onclick="createDues()">Seçili ay aidatlarını oluştur</button>
+   </div>
+  </div>
+  <div id="expenseAdmin" class="card">
+   <h3>Gider kaydı</h3>
+   <label>Açıklama</label><input id="expenseTitle" placeholder="Elektrik faturası">
+   <label>Tutar (TL)</label><input id="expenseAmount" type="number" min="0" placeholder="1500">
+   <button class="full" onclick="addExpense()">Gideri kaydet</button>
+   <div id="expenses"></div>
+  </div>
+ </section>
+ <section id="flats" class="page">
+  <h2>Daire yönetimi</h2>
+  <div id="superAdminSettings" class="card" style="display:none;">
+   <h3>Süper Admin - Sistem Ayarları</h3>
+   <label>Yönetici için Maksimum Daire Sınırı</label>
+   <input id="maxFlatsInput" type="number" min="1" placeholder="10">
+   <button class="secondary full" onclick="updateMaxFlats()" style="margin-top:10px;">Sınırı Kaydet</button>
+  </div>
+  <div id="flatAdmin" class="card">
+   <h3>Yeni daire</h3>
+   <label>Daire numarası</label><input id="flatNo" placeholder="12">
+   <label>Sakin adı soyadı</label><input id="flatOwner" placeholder="Ad soyad">
+   <button class="full" onclick="addFlat()">Daireyi kaydet</button>
+  </div>
+  <div class="card">
+   <h3>Kayıtlı daireler <span class="muted" style="font-weight:normal;font-size:12px;" id="flatLimitInfo">(Seçili aya göre)</span></h3>
+   <div class="tablewrap">
+    <table><thead><tr><th>Daire</th><th>Sakin</th><th>Aidat Durumu</th><th>İşlem</th></tr></thead>
+    <tbody id="flatList"></tbody></table>
+   </div>
+  </div>
+ </section>
+ <section id="facilities" class="page">
+  <h2>Tesis ve Bakım</h2>
+  <div id="facilityAdmin" class="card">
+   <label>Tesis / bakım adı</label><input id="facilityName" placeholder="Tenis kortu">
+   <label>Tarih ve saat</label><input id="facilityTime" placeholder="11 Ekim 18:00">
+   <button class="full" onclick="addFacility()">Kaydet</button>
+  </div>
+  <div class="card"><div id="facilityList"></div></div>
+ </section>
+ <section id="requests" class="page">
+  <h2>Talep ve Arızalar</h2>
+  <div class="card">
+   <label>Talep açıklaması</label>
+   <input id="requestText" placeholder="Koridor lambası arızası">
+   <button class="full" onclick="addRequest()">Talep oluştur</button>
+  </div>
+  <div class="card"><div id="requestList"></div></div>
+ </section>
+</main>
+</div>
+<script>
+(function(){
+'use strict';
+const USERS={
+ kullanici:{user:'kullanicipnl',pass:'kullanici9988',name:'Sakin'},
+ yonetici:{user:'yoneticiadmin',pass:'yonetici2626',name:'Yönetici'},
+ superadmin:{user:'superadmin',pass:'superadmin2323',name:'Süper Admin'}
+};
+const MONTHLY_DUES=2000;
+const MONTHS=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+let role='kullanici';
+let cash=120000;
+let data=load();
+function defaults(){
+ return {
+  flats:[
+   {no:'2',owner:'Ercan Fen',payments:{}},
+   {no:'7',owner:'Filiz Sökmen',payments:{}},
+   {no:'14',owner:'Ahmet Yılmaz',payments:{}},
+   {no:'05',owner:'Ayşe Demir',payments:{}}
+  ],
+  facilities:[],
+  requests:[],
+  expenses:[],
+  cash:120000,
+  maxFlats: 10
+ };
+}
+function load(){
+ try{
+  const s=localStorage.getItem('aida_app_data');
+  if(s){
+   const parsed=JSON.parse(s);
+   if(parsed && Array.isArray(parsed.flats)){
+    const d=Object.assign(defaults(),parsed);
+    if(!Array.isArray(d.facilities))d.facilities=[];
+    if(!Array.isArray(d.requests))d.requests=[];
+    if(!Array.isArray(d.expenses))d.expenses=[];
+    if(typeof d.maxFlats !== 'number') d.maxFlats = 10;
+    return d;
+   }
+  }
+ }catch(e){}
+ return defaults();
+}
+function save(){
+ try{localStorage.setItem('aida_app_data',JSON.stringify(data));}
+ catch(e){console.log('Yerel kayıt hatası: '+e);}
+}
+function el(id){return document.getElementById(id);}
+function esc(s){
+ return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+ });
+}
+function money(n){
+ return '₺'+Number(n||0).toLocaleString('tr-TR',{maximumFractionDigits:2});
+}
+function currentMonth(){
+ const d=new Date();
+ return MONTHS[d.getMonth()]+' '+d.getFullYear();
+}
+function payment(flat,month){
+ if(!flat.payments)flat.payments={};
+ if(!flat.payments[month])flat.payments[month]={isPaid:false,delayCount:1};
+ return flat.payments[month];
+}
+window.login=function(){
+ const selected=el('role').value;
+ const user=USERS[selected];
+ if(el('username').value.trim()===user.user &&
+    el('password').value===user.pass){
+  role=selected;
+  el('message').textContent='';
+  el('login').style.display='none';
+  el('app').style.display='block';
+  el('welcome').textContent='Giriş yapıldı: '+user.name;
+  setupRole();
+  setupMonths();
+  renderAll();
+ }else{
+  el('message').textContent='Kullanıcı adı veya şifre hatalı.';
+ }
+};
+window.logout=function(){
+ el('app').style.display='none';
+ el('login').style.display='block';
+ el('username').value='';
+ el('password').value='';
+};
+function setupRole(){
+ const admin=role!=='kullanici';
+ ['flatAdmin','facilityAdmin','expenseAdmin','paymentAdmin'].forEach(id=>{
+  el(id).style.display=admin?'block':'none';
+ });
+ el('superAdminSettings').style.display = role === 'superadmin' ? 'block' : 'none';
+}
+window.tab=function(id,button){
+ document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+ document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));
+ el(id).classList.add('active');
+ button.classList.add('active');
+};
+function setupMonths(){
+ const opts=[];
+ for(let year=2026;year<=2030;year++){
+  MONTHS.forEach(m=>opts.push(m+' '+year));
+ }
+ ['payMonth'].forEach(id=>{
+  el(id).innerHTML=opts.map(m=>'<option>'+m+'</option>').join('');
+  el(id).value=currentMonth();
+ });
+}
+function renderAll(){
+ renderFlats();
+ renderFacilities();
+ renderRequests();
+ renderExpenses();
+ updateFlatSelect();
+ updateStats();
+ refreshPayment();
+ if(el('maxFlatsInput')) el('maxFlatsInput').value = data.maxFlats;
+}
+function updateFlatSelect(){
+ const s=el('payFlat');
+ const old=s.value;
+ s.innerHTML=data.flats.map((f,i)=>
+  '<option value="'+i+'">Daire '+esc(f.no)+' - '+esc(f.owner)+'</option>'
+ ).join('');
+ if(data.flats.length && old!=='' && Number(old)<data.flats.length)s.value=old;
+}
+function updateStats(){
+ let debt=0;
+ data.flats.forEach(f=>{
+  const p=payment(f,el('payMonth').value);
+  if(!p.isPaid)debt+=(Number(p.delayCount)||1)*MONTHLY_DUES;
+ });
+ el('cash').textContent=money(data.cash);
+ el('debt').textContent=money(debt);
+}
+function selected(){
+ const i=Number(el('payFlat').value);
+ if(!data.flats[i])return null;
+ const month=el('payMonth').value;
+ return {flat:data.flats[i],p:payment(data.flats[i],month),month:month};
+}
+window.refreshPayment=function(){
+ if(!el('payMonth').value || !el('payFlat').value && data.flats.length===0)return;
+ const d=selected();
+ if(!d){
+  el('paymentInfo').textContent='Daire bulunamadı';
+  return;
+ }
+ el('paymentInfo').innerHTML=
+  '<span>Daire '+esc(d.flat.no)+' · '+esc(d.flat.owner)+'</span>'+
+  '<span class="badge '+(d.p.isPaid?'paid':'unpaid')+'">'+
+  (d.p.isPaid?'Ödendi':'Ödenmedi')+'</span>';
+ el('delay').value=String(Math.min(5,Math.max(1,Number(d.p.delayCount)||1)));
+ updateStats();
+ renderFlats();
+};
+window.togglePayment=function(){
+ if(role==='kullanici')return;
+ const d=selected();if(!d)return;
+ d.p.isPaid=!d.p.isPaid;
+ d.p.delayCount=d.p.isPaid?0:1;
+ if(d.p.isPaid)data.cash+=MONTHLY_DUES;
+ else data.cash-=MONTHLY_DUES;
+ save();renderAll();
+};
+window.changeDelay=function(){
+ const d=selected();if(!d || d.p.isPaid)return;
+ d.p.delayCount=Number(el('delay').value)||1;
+ save();updateStats();
+};
+window.createDues=function(){
+ if(role==='kullanici')return;
+ const month=el('payMonth').value;
+ data.flats.forEach(f=>{
+  if(!f.payments[month])f.payments[month]={isPaid:false,delayCount:1};
+ });
+ save();renderAll();alert(month+' aidat kayıtları oluşturuldu.');
+};
+window.updateMaxFlats=function(){
+ if(role!=='superadmin')return;
+ const val=Number(el('maxFlatsInput').value);
+ if(!Number.isFinite(val)||val<=0){alert('Geçerli bir sayı girin.');return;}
+ data.maxFlats=val;
+ save();
+ alert('Yönetici için maksimum daire sınırı '+val+' olarak güncellendi.');
+ renderFlats();
+};
+window.addFlat=function(){
+ if(role==='kullanici')return;
+ if(role==='yonetici' && data.flats.length >= data.maxFlats){
+  alert('Maksimum daire sınırına ('+data.maxFlats+') ulaşıldı. Yeni daire ekleyemezsiniz.');
+  return;
+ }
+ const no=el('flatNo').value.trim();
+ const owner=el('flatOwner').value.trim();
+ if(!no||!owner){alert('Daire numarası ve sakin adı girin.');return;}
+ if(data.flats.some(f=>f.no.toLowerCase()===no.toLowerCase())){
+  alert('Bu daire numarası zaten kayıtlı.');return;
+ }
+ data.flats.push({no:no,owner:owner,payments:{}});
+ save();el('flatNo').value='';el('flatOwner').value='';
+ renderAll();alert('Daire eklendi.');
+};
+function renderFlats(){
+ const currentMonthStr = el('payMonth') ? el('payMonth').value : currentMonth();
+ if(el('flatLimitInfo')) {
+  el('flatLimitInfo').textContent = '(Sınır: ' + data.flats.length + '/' + data.maxFlats + ' - Seçili aya göre)';
+ }
+ el('flatList').innerHTML=data.flats.map((f,i)=>{
+  const p = payment(f, currentMonthStr);
+  const badgeClass = p.isPaid ? 'paid' : 'unpaid';
+  const badgeText = p.isPaid ? 'Ödendi' : 'Ödenmedi';
+  
+  return '<tr>'+
+   '<td>'+esc(f.no)+'</td>'+
+   '<td>'+esc(f.owner)+'</td>'+
+   '<td><span class="badge '+badgeClass+'">'+badgeText+'</span></td>'+
+   '<td>'+(role==='kullanici'?'Kayıtlı':'<button class="danger" style="padding:6px 10px;font-size:11px;" onclick="deleteFlat('+i+')">Sil</button>')+'</td>'+
+  '</tr>';
+ }).join('');
+}
+window.deleteFlat=function(i){
+ if(role==='kullanici')return;
+ if(!confirm('Bu daireyi silmek istiyor musunuz?'))return;
+ data.flats.splice(i,1);save();renderAll();
+};
+window.addFacility=function(){
+ if(role==='kullanici')return;
+ const title=el('facilityName').value.trim();
+ const time=el('facilityTime').value.trim();
+ if(!title||!time){alert('Tesis adı ve tarih/saat girin.');return;}
+ data.facilities.unshift({title:title,time:time});
+ save();renderFacilities();
+ el('facilityName').value='';el('facilityTime').value='';
+};
+function renderFacilities(){
+ el('facilityList').innerHTML=data.facilities.map((f,i)=>
+  '<div class="row"><div><b>'+esc(f.title)+'</b><div class="muted">'+
+  esc(f.time)+'</div></div>'+
+  (role==='kullanici'?'':'<button class="danger" style="padding:6px 10px;font-size:11px;" onclick="deleteFacility('+i+')">Sil</button>')+
+  '</div>'
+ ).join('');
+}
+window.deleteFacility=function(i){
+ if(role==='kullanici')return;
+ data.facilities.splice(i,1);save();renderFacilities();
+};
+window.addRequest=function(){
+ const title=el('requestText').value.trim();
+ if(!title){alert('Talep açıklaması girin.');return;}
+ data.requests.unshift({title:title,status:'Yeni talep'});
+ save();renderRequests();el('requestText').value='';
+ alert('Talep oluşturuldu.');
+};
+function renderRequests(){
+ el('requestList').innerHTML=data.requests.map((r,i)=>
+  '<div class="row"><span>'+esc(r.title)+'</span>'+
+  '<button class="'+(r.status==='Tamamlandı'?'success':'secondary')+
+  '" onclick="cycleRequest('+i+')">'+esc(r.status)+'</button></div>'
+ ).join('');
+}
+window.cycleRequest=function(i){
+ if(role==='kullanici'){alert('Durum değiştirmek için yönetici gerekir.');return;}
+ const statuses=['Yeni talep','İşlemde','Tamamlandı'];
+ let n=statuses.indexOf(data.requests[i].status);
+ data.requests[i].status=statuses[(n+1)%statuses.length];
+ save();renderRequests();
+};
+window.addExpense=function(){
+ if(role==='kullanici')return;
+ const title=el('expenseTitle').value.trim();
+ const amount=Number(el('expenseAmount').value);
+ if(!title||!Number.isFinite(amount)||amount<=0){
+  alert('Açıklama ve geçerli tutar girin.');return;
+ }
+ data.expenses.unshift({
+  title:title,amount:amount,date:new Date().toLocaleDateString('tr-TR')
+ });
+ data.cash-=amount;
+ save();renderExpenses();updateStats();
+ el('expenseTitle').value='';el('expenseAmount').value='';
+ alert('Gider kaydedildi.');
+};
+function renderExpenses(){
+ el('expenses').innerHTML=data.expenses.map((e,i)=>
+  '<div class="row"><span>'+esc(e.title)+'<div class="muted">'+
+  esc(e.date)+'</div></span><div style="display:flex;align-items:center;gap:8px;"><b>'+money(e.amount)+'</b>'+
+  (role==='kullanici'?'':'<button class="danger" style="padding:6px 10px;font-size:11px;" onclick="deleteExpense('+i+')">Sil</button>')+
+  '</div></div>'
+ ).join('');
+}
+window.deleteExpense=function(i){
+ if(role==='kullanici')return;
+ if(!confirm('Bu gideri silmek istiyor musunuz? Tutar kasaya iade edilecektir.'))return;
+ const removed=data.expenses.splice(i,1)[0];
+ if(removed){
+  data.cash+=Number(removed.amount)||0;
+ }
+ save();renderExpenses();updateStats();
+};
+setupMonths();
+renderAll();
+})();
+</script>
+</body>
+</html>

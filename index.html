@@ -1,23 +1,4 @@
-function readStored() {
-  try {
-    const f = $file.read("shared://aida_data.json");
-    if (f && f.string) return f.string;
-  } catch (e) {}
-  try {
-    const c = $cache.get("aida_data");
-    if (typeof c === "string") return c;
-  } catch (e) {}
-  return null;
-}
-
-// ŞİFRE KURTARMA (opsiyonel): Süper Admin şifresini unuttuysanız,
-// config.example.json dosyasını config.local.json olarak kopyalayıp "resetPassword" alanına
-// yeni bir şifre yazın (resetEmail boşsa Süper Admin hesabı sıfırlanır).
-// Uygulamayı çalıştırıp giriş yaptıktan sonra "resetPassword" alanını tekrar boşaltın.
-// Ayar dosyası bulunamazsa sıfırlama kapalı kalır. config.local.json GitHub'a yüklenmez.
-function readResetConfig() {
-  const paths = ["config.local.json", "shared://aida_config.json"];
-  for (let i = 0; i < paths.length; i++) {
+ for (let i = 0; i < paths.length; i++) {
     try {
       const f = $file.read(paths[i]);
       if (f && f.string) {
